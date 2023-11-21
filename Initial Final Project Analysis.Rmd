@@ -1,0 +1,48 @@
+---
+title: "Analysis"
+author: "Elizabeth Thompson"
+date: "11/18/2023"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r}
+library(forecast)
+library(tseries)
+library(fUnitRoots)
+library(astsa)
+library(readr)
+```
+Practice Data 4
+
+```{r}
+data <- read.csv("energy_final.csv", header = TRUE)
+```
+
+
+```{r}
+data <- as.vector(data$energy_used)
+head(data)
+write.table(data, file = "energy.txt")
+```
+
+```{r}
+plot.ts(data)
+acf(data, lag.max = 20)
+pacf(data, lag.max = 20)
+```
+```{r}
+mod1= arima(data, order = c(7, 0, 2))
+acf(residuals(mod1))
+pacf(residuals(mod1))
+print(AIC(mod1))
+print(BIC(mod1))
+
+residuals_mod1 <- residuals(mod1) 
+lags <- c(6, 12, 18, 24)
+test_results <- lapply(lags, function(lag) {
+  Box.test(residuals_mod1, lag=lag, type="Ljung-Box")
+})
+test_results
+```
+
