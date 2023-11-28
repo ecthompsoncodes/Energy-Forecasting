@@ -46,3 +46,17 @@ test_results <- lapply(lags, function(lag) {
 test_results
 ```
 
+```{r}
+mod2= arima(data, order = c(8, 0, 0))
+acf(residuals(mod2))
+pacf(residuals(mod2))
+print(AIC(mod2))
+print(BIC(mod2))
+
+residuals_mod2 <- residuals(mod2) 
+lags <- c(6, 12, 18, 24)
+test_results <- lapply(lags, function(lag) {
+  Box.test(residuals_mod2, lag=lag, type="Ljung-Box")
+})
+test_results
+```
