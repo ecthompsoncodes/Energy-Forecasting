@@ -43,7 +43,11 @@ lags <- c(6, 12, 18, 24)
 test_results <- lapply(lags, function(lag) {
   Box.test(residuals_mod1, lag=lag, type="Ljung-Box")
 })
-test_results
+
+p_values <- sapply(test_results, function(x) x$p.value)
+diag_table <- data.frame(Lag = lags, P_Value = p_values)
+
+print(diag_table, digits = 16)
 ```
 
 ```{r}
@@ -58,5 +62,9 @@ lags <- c(6, 12, 18, 24)
 test_results <- lapply(lags, function(lag) {
   Box.test(residuals_mod2, lag=lag, type="Ljung-Box")
 })
-test_results
+
+p_values <- sapply(test_results, function(x) x$p.value)
+diag_table <- data.frame(Lag = lags, P_Value = p_values)
+
+print(diag_table, digits = 16)
 ```
