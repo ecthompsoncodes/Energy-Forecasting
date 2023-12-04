@@ -3,8 +3,8 @@ title: "Analysis"
 author: "Elizabeth Thompson"
 date: "11/18/2023"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 ```{r}
 library(forecast)
@@ -12,11 +12,14 @@ library(tseries)
 library(fUnitRoots)
 library(astsa)
 library(readr)
+library(readxl)
+library(TSA)
+library(MASS)
 ```
-Practice Data 4
 
 ```{r}
 data <- read.csv("energy_final.csv", header = TRUE)
+tempdata <- read_xlsx("Temperature Data.xlsx")
 ```
 
 
@@ -24,6 +27,10 @@ data <- read.csv("energy_final.csv", header = TRUE)
 data <- as.vector(data$energy_used)
 head(data)
 write.table(data, file = "energy.txt")
+
+tempdata <- as.vector(tempdata$Avg)
+head(tempdata)
+write.table(tempdata, file = "avgtemp.txt")
 ```
 
 ```{r}
@@ -31,6 +38,14 @@ plot.ts(data)
 acf(data, lag.max = 20)
 pacf(data, lag.max = 20)
 ```
+Take a difference? Try ADF for lag one, since we are considering an AR(2) based on PACF
+Difference is rejected, so no need to take a difference
+```{r}
+adfTest(data,1 ,type=c("c"))
+adfTest(data,1 ,type=c("ct")) 
+```
+
+
 ```{r}
 mod1= arima(data, order = c(7, 0, 2))
 acf(residuals(mod1))
@@ -50,6 +65,7 @@ diag_table <- data.frame(Lag = lags, P_Value = p_values)
 print(diag_table, digits = 16)
 ```
 
+
 ```{r}
 mod2= arima(data, order = c(8, 0, 0))
 acf(residuals(mod2))
@@ -68,3 +84,99 @@ diag_table <- data.frame(Lag = lags, P_Value = p_values)
 
 print(diag_table, digits = 16)
 ```
+
+```{r}
+sqrtdata = sqrt(data)
+sqrttemp = sqrt(tempdata)
+```
+
+```{r}
+adfTest(sqrtdata,2 ,type=c("c"))
+adfTest(sqrtdata,2 ,type=c("ct")) 
+```
+Try Transfer Function Model 
+Yt = Energy data
+Xt = Temperature data
+
+```{r}
+sqrtdata_ts = ts(sqrtdata)
+sqrttemp_ts = ts(sqrttemp)
+```
+
+How do the datasets look next to each other?
+```{r}
+plot.ts(data, col = "blue")
+
+# Add the second time series
+plot.ts(tempdata, col = "red")
+par(mfrow = c(1,2))
+```
+
+
+```{r}
+plot.ts(sqrtdata_ts, sqrttemp_ts)
+par(mfrow = c(1,2))
+pacf(sqrtdata_ts, sqrttemp_ts)
+acf(sqrtdata_ts, sqrttemp_ts)
+```
+
+
+```{r}
+tfmod = arimax(sqrttemp_ts, order=c(2,0,2), xreg=sqrtdata_ts, xtransf=sqrtdata_ts, transfer=list(c(1,0)))
+
+# Check model diagnostics
+checkresiduals(tfmod)
+
+# Summary of the model
+summary(tfmod)
+
+residuals_tfmod <- residuals(tfmod) 
+lags <- c(6, 12, 18, 24)
+test_results <- lapply(lags, function(lag) {
+  Box.test(residuals_tfmod, lag=lag, type="Ljung-Box")
+})
+
+p_values <- sapply(test_results, function(x) x$p.value)
+diag_table <- data.frame(Lag = lags, P_Value = p_values)
+
+print(diag_table, digits = 16)
+```
+
+There is feedback in our Transfer Function Model
+```{r}
+checkresiduals(tfmod)
+
+tempdata_ts = ts(tempdata)
+sqrtdata_ts = ts(sqrtdata)
+
+# Compute and plot cross-correlation
+ccf_result = ccf(sqrtdata_ts, tempdata_ts, lag.max=10, plot = FALSE)
+
+plot(ccf_result, main="Cross-Correlation between x and y", ylab="CCF")
+```
+
+```{r}
+final_mod = arima(sqrtdata, order = c(1, 0, 1))
+residuals_model <- residuals(final_mod)
+
+# Generate the Q-Q plot
+qqnorm(residuals_model)
+qqline(residuals_model, col = "red")
+
+# Optionally, you can add a title
+title("Normal Q-Q Plot of Residuals")
+```
+```{r}
+detectAO(final_mod)
+detectIO(final_mod)
+final_mod2=arimax(sqrtdata,order=c(1,0,1),io=c(110,125))
+detectAO(final_mod2)
+detectIO(final_mod2)
+```
+
+m1.D=arima(seriesD,order=c(1,0,0))
+  > m1.D
+  > detectAO(m1.D); detectIO(m1.D)
+  > m2.D=arimax(seriesD,order=c(1,0,0),io=c(217))
+  > m2.D
+
